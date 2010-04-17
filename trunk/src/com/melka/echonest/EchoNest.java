@@ -4,7 +4,7 @@
 // 
 // The Echo Nest API Processing Wrapper
 // http://the.echonest.com/
-// Copyright (C) 2009 melka - Kamel Makhloufi
+// Copyright (C) 2010 melka - Kamel Makhloufi
 // http://melka.one.free.fr/blog/
 
 // Includes code by Vlad Patryshev
@@ -25,6 +25,9 @@
 
 package com.melka.echonest;
 
+import java.io.FileInputStream;
+import java.io.ObjectInputStream;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import com.melka.echonest.ENTrack.*;
 
@@ -65,6 +68,7 @@ public class EchoNest extends Thread {
 	PApplet p;
 	
 	Method dataLoaded;
+	Method dataFailed;
 	
 	boolean loaded;
 	
@@ -92,6 +96,7 @@ public class EchoNest extends Thread {
 			Class[] args = new Class[1];
 			args[0] = ENTrack.class;
             dataLoaded = p.getClass().getMethod("ENTrackLoaded",args);
+            dataFailed = p.getClass().getMethod("ENTrackFailed",args);
 		} catch (NoSuchMethodException e) {
 			System.err.println("Method ENTrackLoaded(ENTrack track) not found");
 		}
@@ -123,32 +128,71 @@ public class EchoNest extends Thread {
 	}
 	
 	public void run() {
-		nest.init(p, APIKey);
 		nest.setAnalysisVersion(analysis_version);
+		
 		if (fileName!=null) {
-			retrieveData(fileName);
+			FileInputStream fis = null;
+			ObjectInputStream in = null;
+			try {
+				String fullPath = p.dataPath(fileName);
+				String h = ENNest.fileHash(fullPath);
+				fis = new FileInputStream("/Library/Application Support/Processing/EchoNest/"+h+".enp5");
+				in = new ObjectInputStream(fis);
+				track = (ENTrack)in.readObject();
+				in.close();
+				System.out.println(">> LOADED ANALYSIS FROM DISK FOR FILE");
+				System.out.println(">> "+fileName);
+				dataLoaded.invoke(p, new Object[] {track});				
+				loaded = true;
+			} catch (IOException e) {
+				nest.init(p, APIKey);
+				retrieveData(fileName);
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (Exception e) {
+				System.err.println("Disabling ENTrackLoaded");
+				e.printStackTrace();
+				dataLoaded = null;
+			}
 		}
+		running = false;
+		interrupt();
 	}
 	
 	public void retrieveData(String file) {
-		System.out.println(">> DOWNLOADING DATA");
+		System.out.println(">> CHECKING ANALISYS STATUS");
+		loaded = false;
 		if (nest.uploadFile(file)) {
+			System.out.println(">> NO FILE SAVED, LOADING DATA FROM SERVER");
 			track = nest.initTrack();
 			track.setAnalysisVersion(analysis_version);
-			bars = track.getBars(); beats = track.getBeats();
-			duration = track.getDuration();
-			endOfFadeIn = track.getEndOfFadeIn(); 
-			trackKey = track.getKey();
-			loudness = track.getLoudness();
-			metadata = track.getMetadata();
-			mode = track.getMode(); 
-			sections = track.getSections();
-			segments = track.getSegments();
-			startOfFadeOut = track.getStartOfFadeOut();
-			tatums = track.getTatums();
-			tempo = track.getTempo();
-			timeSignature = track.getTimeSignature();
-			loaded = true;
+			bars = track.getBars();
+			if (bars == null) {
+				try {
+					dataFailed.invoke(p, new Object[] {track});
+					interrupt();
+				} catch (Exception ex) {
+					ex.printStackTrace();
+					dataFailed = null;
+				}
+			} else {
+				beats = track.getBeats();
+				duration = track.getDuration();
+				endOfFadeIn = track.getEndOfFadeIn(); 
+				trackKey = track.getKey();
+				loudness = track.getLoudness();
+				metadata = track.getMetadata();
+				mode = track.getMode(); 
+				sections = track.getSections();
+				segments = track.getSegments();
+				startOfFadeOut = track.getStartOfFadeOut();
+				tatums = track.getTatums();
+				tempo = track.getTempo();
+				timeSignature = track.getTimeSignature();
+				track.saveTrackAnalysisToDisk();
+				loaded = true;
+			}		
 			if (dataLoaded != null) {
 				try {
 					dataLoaded.invoke(p, new Object[] {track});
