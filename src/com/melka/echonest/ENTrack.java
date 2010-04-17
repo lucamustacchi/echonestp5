@@ -4,7 +4,7 @@
 // 
 // The Echo Nest API Processing Wrapper
 // http://the.echonest.com/
-// Copyright (C) 2009 melka - Kamel Makhloufi
+// Copyright (C) 2010 melka - Kamel Makhloufi
 // http://melka.one.free.fr/blog/
 
 // Includes code by Vlad Patryshev
@@ -25,6 +25,10 @@
 
 package com.melka.echonest;
 
+import java.io.Serializable;
+import java.io.ObjectOutputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import processing.core.PApplet;
 import processing.xml.*;
 
@@ -38,54 +42,58 @@ import processing.xml.*;
  * 
  */
 
-public class ENTrack {
+public class ENTrack implements Serializable {
 	
+	/**
+	 * 
+	 */
+	transient private static final long serialVersionUID = -8528838453602347204L;
 	/**
 	 * Echo Nest Return Code : -1
 	 * An unknown error has occurred.
 	 */	
-	public static final int UNKNOWN_ERROR = -1;
+	transient public static final int UNKNOWN_ERROR = -1;
 	/**
 	 * Echo Nest Return Code : 0
 	 * Success.
 	 */	
-	public static final int SUCCESS = 0;
+	transient public static final int SUCCESS = 0;
 	/**
 	 * Echo Nest Return Code : 1
 	 * The API Key you entered is invalid.
 	 */	
-	public static final int INVALID_KEY = 1;
+	transient public static final int INVALID_KEY = 1;
 	/**
 	 * Echo Nest Return Code : 2
 	 * Your API Key do not allow you to call this method.
 	 */	
-	public static final int NOT_ALLOWED = 2;
+	transient public static final int NOT_ALLOWED = 2;
 	/**
 	 * Echo Nest Return Code : 3
 	 * Too many requests made.
 	 */	
-	public static final int LIMIT_EXCEEDED = 3;
+	transient public static final int LIMIT_EXCEEDED = 3;
 	/**
 	 * Echo Nest Return Code : 4
 	 * A parameter is missing.
 	 */	
-	public static final int MISSING_PARAM = 4;
+	transient public static final int MISSING_PARAM = 4;
 	/**
 	 * Echo Nest Return Code : 5
 	 * An invalid parameter has been used.
 	 */	
-	public static final int INVALID_PARAM = 5;
+	transient public static final int INVALID_PARAM = 5;
 	
-	PApplet parent;
+	transient PApplet parent;
 	
-	private String baseUrl;
-	private String apiKey;
+	transient private String baseUrl;
+	transient private String apiKey;
 	private String artistId;
 	private String trackMD5;
-	private String filePath;
+	transient private String filePath;
 	private int	   analysis_version=3;
 	
-	public final String VERSION = "0.1.0";
+	transient public final String VERSION = "0.1.2";
 	
 	public ENBar[] 			bars;
 	public ENBeat[] 		beats;
@@ -115,6 +123,19 @@ public class ENTrack {
 		setApiKey(ApiKey);
 		setTrackMD5(TrackMD5);
 		parent.registerDispose(this);
+	}
+	
+	public void saveTrackAnalysisToDisk() {
+		FileOutputStream fos = null;
+		ObjectOutputStream out = null;
+		try {
+			fos = new FileOutputStream("/Library/Application Support/Processing/EchoNest/"+trackMD5+".enp5");
+			out = new ObjectOutputStream(fos);
+			out.writeObject(this);
+			out.close();
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
 	}
 	
 	/**
@@ -278,13 +299,24 @@ public class ENTrack {
 				String status = data.getChild("analysis").getChild("status").getContent();
 				String id = data.getChild("analysis").getChild("id").getContent();
 				String md5 = data.getChild("analysis").getChild("md5").getContent();
-				String artist = data.getChild("analysis").getChild("artist").getContent();
-				String release = data.getChild("analysis").getChild("release").getContent();
-				String title = data.getChild("analysis").getChild("title").getContent();
-				String genre = data.getChild("analysis").getChild("genre").getContent();
-				float duration = Float.parseFloat(data.getChild("analysis").getChild("duration").getContent());
-				int samplerate = Integer.parseInt(data.getChild("analysis").getChild("samplerate").getContent());
-				int bitrate = Integer.parseInt(data.getChild("analysis").getChild("bitrate").getContent());
+				String artist = null;
+				String release = null;
+				String title = null;
+				String genre = null;
+				float duration = 0;
+				int samplerate = 0;
+				int bitrate = 0;
+				try {
+					artist = data.getChild("analysis").getChild("artist").getContent();
+					release = data.getChild("analysis").getChild("release").getContent();
+					title = data.getChild("analysis").getChild("title").getContent();
+					genre = data.getChild("analysis").getChild("genre").getContent();
+					duration = Float.parseFloat(data.getChild("analysis").getChild("duration").getContent());
+					samplerate = Integer.parseInt(data.getChild("analysis").getChild("samplerate").getContent());
+					bitrate = Integer.parseInt(data.getChild("analysis").getChild("bitrate").getContent());
+				} catch (NullPointerException e) {
+					e.printStackTrace();
+				}
 				metadata = new ENMetadata(status, id, md5, artist, release, title, genre, duration, samplerate, bitrate);
 				System.out.println(">> METADATA LOADED : Artist = "+metadata.artist);
 				return metadata;
@@ -569,7 +601,11 @@ public class ENTrack {
 	/**
 	 * A bar, or measure, is a unit of time in Western music representing a regular grouping of beats.
 	 */
-	public class ENBar {
+	public class ENBar implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7520970068489066097L;
 		/**
 		 * Computational error margin. Higher is better. Varies between 0 and 1.
 		 */
@@ -588,7 +624,11 @@ public class ENTrack {
 	/**
 	 * The basic time unit of a piece of music.
 	 */	
-	public class ENBeat {
+	public class ENBeat implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2652190481126589487L;
 		/**
 		 * Computational error margin. Higher is better. Varies between 0 and 1.
 		 */
@@ -606,7 +646,11 @@ public class ENTrack {
 	/**
 	 * Duration of the track.
 	 */
-	public class ENDuration {
+	public class ENDuration implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 6160062620506682217L;
 		/**
 		 * Duration (in seconds)
 		 */
@@ -619,7 +663,11 @@ public class ENTrack {
 	/**
 	 * A fade-in is a gradual increase in the level of the audio signal.
 	 */
-	public class ENEndOfFadeIn {
+	public class ENEndOfFadeIn implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7567859021567548180L;
 		/**
 		 * Time (in seconds) giving the end of a possible initial fade-in section.
 		 * Equals 0 when insignificant.
@@ -633,7 +681,11 @@ public class ENTrack {
 	/**
 	 * A fade-out is a gradual decrease in the level of the audio signal, typically at the end of the song.
 	 */
-	public class ENStartOfFadeOut{
+	public class ENStartOfFadeOut implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4925849563064077480L;
 		/**
 		 * Time (in seconds) giving giving the beginning of a possible final fade-out section.
 		 * Equals 0 when insignificant.
@@ -647,7 +699,11 @@ public class ENTrack {
 	/**
 	 * Tracks's harmonic center or tonic.
 	 */
-	public class ENKey {
+	public class ENKey implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2975867804981100262L;
 		/**
 		 * Computational error margin. Higher is better. Varies between 0 and 1.
 		 */
@@ -665,7 +721,11 @@ public class ENTrack {
 	/**
 	 * Loudness is the quality of a sound that is the primary psychological correlate of physical strength (amplitude).
 	 */
-	public class ENLoudness {
+	public class ENLoudness implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -5458624608681096542L;
 		/**
 		 * Overall track loudness estimation (in dB).
 		 */
@@ -679,6 +739,10 @@ public class ENTrack {
 	 * Loudness of a particular segment.
 	 */
 	public class ENSegmentLoudness extends ENLoudness {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1694486969225299184L;
 		/**
 		 * Position of the peak.
 		 * For the average loudness, always 0.
@@ -700,7 +764,11 @@ public class ENTrack {
 	 * Metadatas are informations embedded in an MP3 file.
 	 * All those informations are not always available, it depends on the uploaded file.
 	 */
-	public class ENMetadata {
+	public class ENMetadata implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3742473372624779856L;
 		/**
 		 * Status of the analysis
 		 */
@@ -761,7 +829,11 @@ public class ENTrack {
 	/**
 	 * Mode of the track (Major or Minor)
 	 */
-	public class ENMode {
+	public class ENMode implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2037314745792590657L;
 		/**
 		 * Computational error margin. Higher is better. Varies between 0 and 1.
 		 */
@@ -780,7 +852,11 @@ public class ENTrack {
 	 * Sections are the largest chunks in the track, corresponding to major changes in the music, 
 	 * e.g. chorus, verse, bridge, solo, etc.
 	 */
-	public class ENSection {
+	public class ENSection implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -5912086165148028006L;
 		/**
 		 * Start of this section (in seconds)
 		 */
@@ -801,7 +877,11 @@ public class ENTrack {
 	 * a snare with sax, etc.). A segment is typically defined by the inter onset duration and has the
 	 * time envelope of an attack and decay.
 	 */
-	public class ENSegment {
+	public class ENSegment implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4019040248438782058L;
 		/**
 		 * Start of this segment (in seconds)
 		 */
@@ -858,7 +938,11 @@ public class ENTrack {
 	 * Tatums are typically sub-divisions of beats, describing the smallest
 	 * perceptual metrical unit of the music. (in seconds)
 	 */
-	public class ENTatum {
+	public class ENTatum implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7705218004699997207L;
 		/**
 		 * Computational error margin. Higher is better. Varies between 0 and 1.
 		 */
@@ -876,7 +960,11 @@ public class ENTrack {
 	/**
 	 * Speed or pace of the audio track.
 	 */
-	public class ENTempo {
+	public class ENTempo implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 2854928503317301762L;
 		/**
 		 * Computational error margin. Higher is better. Varies between 0 and 1.
 		 */
@@ -896,7 +984,11 @@ public class ENTrack {
 	/**
 	 * Estimated overall time signature (number of beats per measure).
 	 */
-	public class ENTimeSignature {
+	public class ENTimeSignature implements Serializable {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3973067814075359793L;
 		/**
 		 * Computational error margin. Higher is better. Varies between 0 and 1.
 		 */

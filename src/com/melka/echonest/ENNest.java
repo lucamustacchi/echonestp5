@@ -35,7 +35,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.math.*;
 
 /**
  * This library is a wrapper that simplify the use of the Echo Nest API.
@@ -121,7 +120,7 @@ public class ENNest {
 	
 	private ENTrack track;
 	
-	public final String VERSION = "0.1.0";
+	public final String VERSION = "0.1.2";
 
 	public ENNest() {
 	}
@@ -137,7 +136,7 @@ public class ENNest {
 	
 	public ENNest init(PApplet parent, String ApiKey, String TrackMD5, int Version) {
 		System.out.println("* The Echo Nest Processing Wrapper Library *");
-		System.out.println("* (c) melka 2009 // Licence : GPLv3        *");
+		System.out.println("* (c) melka 2010 // Licence : GPLv3        *");
 		this.parent = parent;
 		setBaseUrl("http://developer.echonest.com/api/");
 		setApiKey(ApiKey);
@@ -174,7 +173,7 @@ public class ENNest {
 	 * @return boolean
 	 */
 	public boolean validateApiKey () {
-		XMLElement data = new XMLElement(parent,baseUrl+"get_duration?api_key="+apiKey+"&version=3");
+		XMLElement data = new XMLElement(parent,baseUrl+"get_duration?api_key="+apiKey+"&version=3&analysis_version=3");
 		if (Integer.parseInt(data.getChild("status").getChild("code").getContent()) == INVALID_KEY) {
 			System.err.println(">> INVALID KEY");
 			return false;
@@ -201,7 +200,7 @@ public class ENNest {
 		try {
 			String h = fileHash(getFilePath());
 			setTrackMD5(h);
-			XMLElement data = new XMLElement(parent,baseUrl+"get_duration?api_key="+apiKey+"&md5="+trackMD5+"&version=3");
+			XMLElement data = new XMLElement(parent,baseUrl+"get_duration?api_key="+apiKey+"&md5="+trackMD5+"&version=3&analysis_version=3");
 			if (Integer.parseInt(data.getChild("status").getChild("code").getContent()) == INVALID_PARAM) {
 				System.out.println(">> UNKNOWN FILE, BEGINNING UPLOAD");
 				return uploadData();
@@ -219,7 +218,6 @@ public class ENNest {
 	 * Upload the file data (byte[]) to the Echo Nest's server for analysis.
 	 * @return A boolean, true if successful, false if an error occurred.
 	 */
-	
 	private boolean uploadData() {
 		File f = new File(getFilePath());
 		try {
@@ -227,6 +225,7 @@ public class ENNest {
 			ClientHttpRequest http = new ClientHttpRequest(baseUrl+"upload");
 			http.setParameter("api_key",apiKey);
 			http.setParameter("version","3");
+			http.setParameter("analysis_version","3");
 			http.setParameter("file",f);
 			http.setParameter("wait","Y");
 			InputStream is = http.post();
@@ -263,19 +262,37 @@ public class ENNest {
 	/**
 	 * Compute an MD5 hash for a given file.
 	 * 
+	 * Changed this method, was giving bad results. ie : Bradley Strider / Bradley's Beat.
+	 * MD5 of file is 004f22f350579edab0a965cb88a472d1, the old method was getting rid of the
+	 * leading 00, giving a string of length 30 instead of 32. This will solve some problems
+	 * for some file (always requiring upload even though it was already analyzed)
+	 * 
 	 * @param path Absolute path of the file to hash.
 	 * @return Computed MD5 hash.
 	 * @throws Exception
 	 */
-	
-	private static String fileHash(String path) throws Exception {
+	public static String fileHash(String path) throws Exception {
 		File f = new File(path);
 		FileInputStream fs = new FileInputStream(f);
 		byte[] b = new byte[(int) f.length()];
 		fs.read(b);
+				
 		MessageDigest h = MessageDigest.getInstance("MD5");
 		h.update(b);
-		return new BigInteger(1, h.digest()).toString(16);
+		byte messageDigest[] = h.digest();
+		
+		StringBuffer hexString = new StringBuffer();
+		for (int i = 0; i < messageDigest.length; i++)
+        {
+            String hex = Integer.toHexString(0xFF & messageDigest[i]);
+            if (hex.length() == 1)
+            {
+                hexString.append('0');
+            }
+            hexString.append(hex);
+        }
+		String md5val = hexString.toString();
+		return md5val;
 	}
 	
 	/**
