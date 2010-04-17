@@ -3,7 +3,7 @@
 // 
 // The Echo Nest API Processing Wrapper
 // http://the.echonest.com/
-// Copyright (C) 2009 melka - Kamel Makhloufi
+// Copyright (C) 2010 melka - Kamel Makhloufi
 // http://melka.one.free.fr/blog/
 
 // Includes code by Vlad Patryshev
@@ -32,9 +32,23 @@
 // !! IMPORTANT NOTICE !!
 // I did not like the fact that the app was hanging while downloading
 // datas, so the Echo Nest library uses a different thread to make
-// the requests on The Echo Nest Server.
-// It automatically downloads all the data and sends a notification
-// to your Processing sketch to inform it that everything is ready.
+// the requests on The Echo Nest Server. It automatically downloads 
+// all the data and sends a notification to your Processing sketch to
+// inform it that everything is ready.
+// I also added some code to save the ENTrack objects to disk. For now,
+// it works only on Mac OS X (haven't tried on the other platforms but
+// I'm sure it won't work, don't know what the error will be though).
+// The files are saved in /Library/Application Support/Processing/EchoNest/
+// They are named <md5 of the file>.enp5 and are the ENTrack objects already
+// parsed etc...
+// Just call the analysis as usual, if the file is already saved on disk,
+// it'll use it instead of going online and retrieving the data from
+// the EchoNest server. If you need a new analysis, just delete the .enp5
+// file from disk.
+// Finally, I think I solved for good the CODE 11 & CODE 5 errors some of us
+// were having. It was due to the MD5 computation giving wrong hashes. I've
+// just finished uploading a batch of files to the EchoNest server and I had
+// no error while I had some problematic files with the old code.
 
 import com.melka.echonest.*;
 import com.melka.echonest.ENTrack.*;
@@ -71,9 +85,10 @@ void setup() {
   background(255);
   font = createFont("", 32);
   textFont(font,20);
-  EchoNest nest = new EchoNest(this,APIKey,fileToUpload);
+  EchoNest nest = new EchoNest(this,APIKey,fileToUpload, 3);
   // A modification in the analysis from The Echo Nest might bring
-  // ERROR CODE 11 with some mp3 files.
+  // ERROR CODE 11 with some mp3 files. The error may also be due to
+  // the MD5 computation code used in a previous version of the lib.
   // If it's your case, change the previous line with this one.
   // EchoNest nest = new EchoNest(this,APIKey,fileToUpload,1);
   // The last parameter is the analysis_version param. Default = 3.
@@ -95,10 +110,15 @@ void draw() {
 
 // This function is the notification sent by the library
 // after it finished loading all the datas for your track.
-
 void ENTrackLoaded(ENTrack track) {
   t = track;
   loaded = true;
+}
+
+// This function is a new notification sent by the library
+// to warn you that a file failed.
+void ENTrackFailed(ENTrack track) {
+  System.err.println("ANALYSIS FAILED");
 }
 
 void drawSoundscape() {
